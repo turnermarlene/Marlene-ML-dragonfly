@@ -1,0 +1,21 @@
+{
+"name": "multiobjective_branin_currinexp",
+
+"domain" : {
+  "x1" : {
+    "name":"hexy",
+    "type":"float",
+    "min":-3,
+    "max":-1,
+    "dim":1
+  },
+
+  "x2" : {
+    "name":"hexz",
+    "type":"float",
+    "min":1,
+    "max":3,
+    "dim":1
+  }
+}
+}
