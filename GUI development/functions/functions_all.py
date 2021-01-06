@@ -1,3 +1,14 @@
+import tkinter as tk
+from dragonfly import maximise_function, minimise_function
+import socket
+import struct
+import numpy as np
+import time
+import re
+import threading
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+
 class GUI:    
     def __init__(self, master):
         
@@ -507,3 +518,4 @@ class GUI:
         self.myCanvas.draw()
         self.master.update()
         return
+
