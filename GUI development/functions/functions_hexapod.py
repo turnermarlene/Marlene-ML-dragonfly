@@ -8,10 +8,10 @@ import threading
 def update_hex_pos(hexy,hexz,wangle,vangle,hexapod_address):
     udp_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    hexy = np.round(hexy,4)
-    hexz = np.round(hexz,4)
-    wangle = np.round(wangle,4)
-    vangle = np.round(vangle,4)
+    hexy = np.round(hexy,3)
+    hexz = np.round(hexz,3)
+    wangle = np.round(wangle,3)
+    vangle = np.round(vangle,3)
 
     hexycommand =bytes("setypos>>"+str(hexy),'ascii')
     #print(hexycommand)

@@ -273,10 +273,10 @@ class GUI:
         self.e_wangle.delete(0,10)
         self.e_vangle.delete(0,10)
         
-        self.e_hexy.insert(0,np.round(max_pt[0],4))
-        self.e_hexz.insert(0,np.round(max_pt[1],4))
-        self.e_wangle.insert(0,np.round(max_pt[2],4))
-        self.e_vangle.insert(0,np.round(max_pt[3],4))
+        self.e_hexy.insert(0,np.round(max_pt[0],3))
+        self.e_hexz.insert(0,np.round(max_pt[1],3))
+        self.e_wangle.insert(0,np.round(max_pt[2],3))
+        self.e_vangle.insert(0,np.round(max_pt[3],3))
         
         self.prealignmentupdatemessage.set(' ')
         self.var.set('Messages: optimisation is done')
@@ -374,10 +374,10 @@ class GUI:
         self.e_wangle.delete(0,10)
         self.e_vangle.delete(0,10)
         
-        self.e_hexy.insert(0,np.round(max_pt[0],4))
-        self.e_hexz.insert(0,np.round(max_pt[1],4))
-        self.e_wangle.insert(0,np.round(max_pt[2],4))
-        self.e_vangle.insert(0,np.round(max_pt[3],4))
+        self.e_hexy.insert(0,np.round(max_pt[0],3))
+        self.e_hexz.insert(0,np.round(max_pt[1],3))
+        self.e_wangle.insert(0,np.round(max_pt[2],3))
+        self.e_vangle.insert(0,np.round(max_pt[3],3))
         
         self.findsignalupdatemessage.set(' ')
         self.var.set('Messages: signal finding finished')
