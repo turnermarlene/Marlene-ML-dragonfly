@@ -76,3 +76,39 @@ def get_current_hex_pos(parameter,hexapod_address):
     client.close()
 
     return position
+
+
+def get_current_stage_pos(stage_address):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect(stage_address)
+
+    subcriptionstring = bytes("Wait>>position",'ascii')
+    SubcriptionCmdLength = len(subcriptionstring)
+    sizepack = struct.pack('>i', SubcriptionCmdLength)
+
+    client.sendall(sizepack + subcriptionstring)
+    size = struct.unpack('>i', client.recv(4))[0]  # Extract the msg size from four bytes - mind the encoding
+    str_data = client.recv(size)
+    #print('Data size: %s Data value: %s' % (size, str_data.decode('ascii')))
+    position = np.float(re.findall(r'[-+]?\d+\.\d+', str_data.decode('ascii'))[0])
+    #print(position)
+    client.close()
+    
+    position = np.round(position,1)
+
+    return position
+
+
+def update_imaging_stage_pos(stage_position,stage_address):
+    udp_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    stage_position = np.round(stage_position,3)
+    stagecommand =bytes("setposition>>"+str(stage_position),'ascii')
+
+    udp_client.sendto(stagecommand, stage_address)
+    
+    pos_m = get_current_stage_pos(stage_address)
+    while np.abs(pos_m-stage_position) > 1:
+        pos_m = get_current_stage_pos(stage_address)
+
+    return

@@ -31,6 +31,7 @@ class GUI:
         self.server_address_probecampost = ('192.168.15.24', 65280)
         self.server_address_probecampostnear = ('192.168.15.25', 65264)
         self.hexapod_address = ('192.168.15.16', 65529)
+        self.imagingstage_adress = ('192.168.15.13', 65274)
 
         #define window
         self.master = master
@@ -171,7 +172,7 @@ class GUI:
         hexw_temp = get_current_hex_pos('wangle',self.hexapod_address)
         hexv_temp = get_current_hex_pos('vangle',self.hexapod_address)
 
-        update_hex_pos(20.0,float(self.e_hexz.get()),float(self.e_wangle.get()),float(self.e_vangle.get()),self.hexapod_address)
+        update_hex_pos(16.0,float(self.e_hexz.get()),float(self.e_wangle.get()),float(self.e_vangle.get()),self.hexapod_address)
 
         cenx1,ceny1 = get_cam_centroid(self.server_address_probecampostnear,self.N)
         cenx2,ceny2 = get_cam_centroid(self.server_address_probecampost,self.N)    
@@ -198,36 +199,46 @@ class GUI:
     
 
     def opt_align(self,hexp):
-        hexy = hexp[0]
-        hexz = hexp[1]
-        wangle = hexp[2]
-        vangle = hexp[3]
-
+        dim_array = ['ypos','zpos','wangle','vangle']
+        centroids = np.zeros(4)
+        hex_h = np.zeros([4,4])
+        
+        for dim in range(0,4):
         #update hexapod pos
-        update_hex_pos(hexy,hexz,wangle,vangle,self.hexapod_address)
+            update_hex_pos_one_axis(hexp[dim],dim_array[dim],self.hexapod_address)
 
-        #get cam property
-        meancounts_campost1 = get_cam_mean(self.server_address_probecampostnear,self.N)
-        meancounts_campost2 = get_cam_mean(self.server_address_probecampost,self.N)
+            #get cam property
+            meancounts_campost1 = get_cam_mean(self.server_address_probecampostnear,self.N)
+            meancounts_campost2 = get_cam_mean(self.server_address_probecampost,self.N)
 
-        meancounts_campost = meancounts_campost1+meancounts_campost2
+            meancounts_campost = meancounts_campost1+meancounts_campost2
+            
+            if meancounts_campost>5:
+                cenx1,ceny1 = get_cam_centroid(self.server_address_probecampostnear,self.N)
+                cenx2,ceny2 = get_cam_centroid(self.server_address_probecampost,self.N)
 
-        if meancounts_campost>10:
-            cenx1,ceny1 = get_cam_centroid(self.server_address_probecampostnear,self.N)
-            cenx2,ceny2 = get_cam_centroid(self.server_address_probecampost,self.N)
+                #get centroids when cap is out from gui
+                capout_cenx1 = float(self.e_cen1x.get())
+                capout_ceny1 = float(self.e_cen1y.get())
+                capout_cenx2 = float(self.e_cen2x.get())
+                capout_ceny2 = float(self.e_cen2y.get())
 
-            #get centroids when cap is out from gui
-            capout_cenx1 = float(self.e_cen1x.get())
-            capout_ceny1 = float(self.e_cen1y.get())
-            capout_cenx2 = float(self.e_cen2x.get())
-            capout_ceny2 = float(self.e_cen2y.get())
+                cen = 8*np.sqrt((np.abs(cenx1-capout_cenx1)+np.abs(ceny1-capout_ceny1))**2)+np.sqrt((np.abs(cenx2-capout_cenx2)+np.abs(ceny2-capout_ceny2))**2)
+            
+            else:
+                cen=2000-meancounts_campost*2*10
 
-            cen = 8*np.sqrt((np.abs(cenx1-capout_cenx1)+np.abs(ceny1-capout_ceny1))**2)+np.sqrt((np.abs(cenx2-capout_cenx2)+np.abs(ceny2-capout_ceny2))**2)
-        else:
-            cen=2000-meancounts_campost*2
+            centroids[dim] = np.round(cen,1)
+            hex_h[dim,0] = get_current_hex_pos('ypos',self.hexapod_address)
+            hex_h[dim,1] = get_current_hex_pos('zpos',self.hexapod_address)
+            hex_h[dim,2] = get_current_hex_pos('wangle',self.hexapod_address)
+            hex_h[dim,3] = get_current_hex_pos('vangle',self.hexapod_address)
 
 
-        self.ax.scatter(self.draw_counts,np.round(cen),color='tab:blue',s=10)
+        self.ax.scatter(self.draw_counts,centroids[0],color='tab:blue',s=10)
+        self.ax.scatter(self.draw_counts,centroids[1],color='tab:blue',s=10)
+        self.ax.scatter(self.draw_counts,centroids[2],color='tab:blue',s=10)
+        self.ax.scatter(self.draw_counts,centroids[3],color='tab:blue',s=10)
         self.myCanvas.draw()
         self.master.update()
         
@@ -235,7 +246,7 @@ class GUI:
 
         #print(np.round(cen))
 
-        return cen
+        return [centroids,hex_h]
 
     def optimise_coarse(self):
         
@@ -273,24 +284,32 @@ class GUI:
         for i in range(np.int(max_capital)):
             hexp_suggest = opt.ask()
             
-            cen = self.opt_align(hexp_suggest)
-            opt.tell([(hexp_suggest, -cen)])
+            [cen,hexp] = self.opt_align(hexp_suggest)
             
+            opt.tell([(hexp[0,:], -cen[0])])
+            opt.tell([(hexp[1,:], -cen[1])])
+            opt.tell([(hexp[2,:], -cen[2])])
+            opt.tell([(hexp[3,:], -cen[3])])
+
             file =  open(savefile, 'a')
-            file.write("%f %f %f %f %f \n"% (hexp_suggest[0],hexp_suggest[1],hexp_suggest[2],hexp_suggest[3],-cen))
+            file.write("%f %f %f %f %f \n"% (hexp[0,0],hexp[0,1],hexp[0,2],hexp[0,3],-cen[0]))
+            file.write("%f %f %f %f %f \n"% (hexp[1,0],hexp[1,1],hexp[1,2],hexp[1,3],-cen[1]))
+            file.write("%f %f %f %f %f \n"% (hexp[2,0],hexp[2,1],hexp[2,2],hexp[2,3],-cen[2]))
+            file.write("%f %f %f %f %f \n"% (hexp[3,0],hexp[3,1],hexp[3,2],hexp[3,3],-cen[3]))
             file.close()
    
             print(cen)
                      
         #finsish set to optimum values
         print('We are done here:')
+        
         meas_array = np.loadtxt(savefile)
-        print(np.max(meas_array[4]))
-        index = np.argmin(meas_array[4])
-        max_pt = [meas_array[0,index],meas_array[1,index],meas_array[2,index],meas_array[3,index]]
+        print(np.max(meas_array[:,4]))
+        index = np.argmax(meas_array[:,4])
+        max_pt = [np.round(meas_array[index,0],3), np.round(meas_array[index,1],3), np.round(meas_array[index,2],3), np.round(meas_array[index,3],3)]
         
         print(max_pt)
-        final_cen = self.opt_align(max_pt)
+        update_hex_pos(max_pt[0],max_pt[1],max_pt[2],max_pt[3],self.hexapod_address)
         
         self.e_hexy.delete(0,10)
         self.e_hexz.delete(0,10)
@@ -305,7 +324,7 @@ class GUI:
         self.prealignmentupdatemessage.set(' ')
         self.var.set('Messages: optimisation is done')
         self.PreAlign.configure(bg='green')
-        self.ax.axhline(np.round(final_cen),color='tab:green')
+        self.ax.axhline(-np.round(meas_array[index,4]),color='tab:green')
         self.myCanvas.draw()
         self.master.update()
         return
@@ -344,6 +363,10 @@ class GUI:
             hex_h[dim,1] = get_current_hex_pos('zpos',self.hexapod_address)
             hex_h[dim,2] = get_current_hex_pos('wangle',self.hexapod_address)
             hex_h[dim,3] = get_current_hex_pos('vangle',self.hexapod_address)
+            
+            if np.max(ampl) > 1000:
+                set_cam_exposure(self.server_address_probecampostnear,0.001)
+                set_cam_exposure(self.server_address_probecampost,0.001)
 
         self.ax.scatter(self.draw_counts,np.round(ampl[0]),color='tab:blue',s=10)
         self.ax.scatter(self.draw_counts,np.round(ampl[1]),color='tab:blue',s=10)
@@ -378,6 +401,8 @@ class GUI:
         
         set_cam_exposure(self.server_address_probecampostnear,1.0)
         set_cam_exposure(self.server_address_probecampost,1.0)
+        stagepos_before = get_current_stage_pos(self.imagingstage_adress)
+        update_imaging_stage_pos(10.0,self.imagingstage_adress)
         
         timestr = time.strftime("%Y%m%d-%H%M%S")
         savefilef = "saved_data\ " + timestr +"_find.txt"
@@ -407,22 +432,23 @@ class GUI:
             file.close()
             
             if np.max(ampl) > 1000:
-                set_cam_exposure(self.server_address_probecampostnear,0.001)
-                set_cam_exposure(self.server_address_probecampost,0.001)
                 break
                      
         #finsish set to optimum values
+        
+        #to do: sort out colum line issue
         print('We are done here:')
         meas_array = np.loadtxt(savefilef)
-        print(np.max(meas_array[4]))
-        index = np.argmax(meas_array[4])
-        max_pt = [np.round(meas_array[0,index],3), np.round(meas_array[1,index],3), np.round(meas_array[2,index],3), np.round(meas_array[3,index],3)]
+        print(np.max(meas_array[:,4]))
+        index = np.argmax(meas_array[:,4])
+        max_pt = [np.round(meas_array[index,0],3), np.round(meas_array[index,1],3), np.round(meas_array[index,2],3), np.round(meas_array[index,3],3)]
         print(max_pt)
         
         set_cam_exposure(self.server_address_probecampostnear,0.001)
         set_cam_exposure(self.server_address_probecampost,0.001)
         
-        update_hex_pos(max_pt,hexapod_address,self.hexapod_address)
+        update_hex_pos(max_pt[0],max_pt[1],max_pt[2],max_pt[3],self.hexapod_address)
+        update_imaging_stage_pos(stagepos_before,self.imagingstage_adress)
         
         self.e_hexy.delete(0,10)
         self.e_hexz.delete(0,10)
@@ -437,7 +463,7 @@ class GUI:
         self.findsignalupdatemessage.set(' ')
         self.var.set('Messages: signal finding finished')
         self.Findsignal.configure(bg='green')
-        self.ax.axhline(np.round(final_max),color='tab:green')
+        self.ax.axhline(np.round(meas_array[index,4]),color='tab:green')
         self.myCanvas.draw()
         self.master.update()
         return
